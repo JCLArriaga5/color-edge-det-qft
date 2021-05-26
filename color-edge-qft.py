@@ -6,18 +6,18 @@ import cv2
 
 def img_qft(img, mu):
     """
-    Obtener la transformada de Fourier para Cuaterniones de una imagen
+    Obtain the Fourier Transform for Quaternions of an Image.
 
     Parameters
     ----------
-    img : Imagen a color [R, G, B]
+    img : Color image [R, G, B].
     mu : list
-      Unidad de cuaternión puro.
+      Pure quaternion unit.
       e.g., (i + j + k) / sqrt(3) -> [1/sqrt(3), 1/sqrt(3), 1/sqrt(3)]
 
     Return
     ------
-    Fuv : QFT en el dominio de la frecuencia de la imagen de espacio 4-D
+    Fuv : QFT in the frequency domain of the 4-D space image.
     """
 
     fr = img[:, :, 0]
@@ -47,18 +47,18 @@ def img_qft(img, mu):
 
 def img_iqft(img_qft, mu):
     """
-    Transformada inversa de Fourier de la QFT de una imagen.
+    Inverse Fourier transform of the QFT of an image.
 
     Parameters
     ----------
-    img_qft : QFT imagen 4-D [Auv, iBuv, jCuv, kDuv]
+    img_qft : QFT 4-D image [Auv, iBuv, jCuv, kDuv].
     mu : list
-      Unidad de cuaternión puro.
+      Pure quaternion unit.
       e.g., (i + j + k) / sqrt(3) -> [1/sqrt(3), 1/sqrt(3), 1/sqrt(3)]
 
     Returns
     -------
-    fmn : Imagen a color
+    fmn : Color image.
     """
 
     A = img_qft[:, :, 0]
@@ -101,6 +101,22 @@ def img_iqft(img_qft, mu):
     return fmn
 
 def sobel_filter_qft(f):
+    """
+    Vertical and horizontal sobel filter in the frequency domain applied to the
+    QFT of the image.
+
+    Parameters
+    ----------
+    f : QFT of the image.
+
+    Returns
+    -------
+    Gx : complex
+        Sobel filter applied horizontally at qft in the frequency domain.
+    Gy : complex
+        Sobel filter applied vertically at qft in the frequency domain.
+    """
+
     # sobel in x direction
     sobel_x = np.array([[-1, 0, 1],
                        [-2, 0, 2],
@@ -131,8 +147,23 @@ def sobel_filter_qft(f):
 
     return Gx, Gy
 
-def img_out(G_n, mu):
-    out = img_iqft(G_n, mu)
+def img_out(F, mu=[(1 / np.sqrt(3))] * 3):
+    """
+    Retrieve color image using inverse Fourier transform for quaternions.
+
+    Parameters
+    ----------
+    F : Quaternion Fourier transform image.
+    mu : list
+      Pure quaternion unit.
+      e.g., (i + j + k) / sqrt(3) -> [1/sqrt(3), 1/sqrt(3), 1/sqrt(3)]
+
+    Return
+    ------
+    Normalized image in [0, 1] range.
+    """
+
+    out = img_iqft(F, mu)
 
     for d in range(out.shape[2]):
         np.putmask(out[:, :, d], out[:, :, d] < 0, 0)
@@ -140,12 +171,21 @@ def img_out(G_n, mu):
     return cv2.normalize(out, None, 0, 1, cv2.NORM_MINMAX)
 
 def color_xyedge_det(img, mu=[(1 / np.sqrt(3))] * 3):
+    """
+    Color image recovered once the horizontal and vertical sobel filter is
+    applied.
+    """
+
     f = img_qft(img, mu)
     Gx, Gy = sobel_filter_qft(f)
 
     return img_out(Gx, mu), img_out(Gy, mu)
 
 def correlate_qft(img, mu=[(1 / np.sqrt(3))] * 3):
+    """
+    Retrieve Color Image from Horizontal and Vertical Sobel Filter Correlation.
+    """
+
     f = img_qft(img, mu)
     Gx, Gy = sobel_filter_qft(f)
 
@@ -180,7 +220,6 @@ if __name__ == '__main__':
     ax3.imshow(img_sobely[:, :, 1:], cmap='gray')
     ax3.set_title('IQFT Sobel Y'), ax3.set_xticks([]), ax3.set_yticks([])
 
-    plt.savefig('sobel-hv.png', dpi=150, transparent=True)
     plt.show()
 
     # Combine horizontal and vertical sobel filter using correlation
@@ -192,5 +231,4 @@ if __name__ == '__main__':
     plt.yticks([])
     plt.imshow(correlate[:, :, 1:], cmap='gray')
 
-    plt.savefig('sobel-correlate.png', dpi=150, transparent=True)
     plt.show()
