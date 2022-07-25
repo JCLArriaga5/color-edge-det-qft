@@ -163,12 +163,15 @@ def img_out(F, mu=[(1 / np.sqrt(3))] * 3):
     Normalized image in [0, 1] range.
     """
 
+    assert F.shape[2] == 4, "Image is not in qft format"
+
     out = img_iqft(F, mu)
 
     for d in range(out.shape[2]):
-        np.putmask(out[:, :, d], out[:, :, d] < 0, 0)
+        out[:, :, d] /= np.amax(out[:, :, d])
+        out[:, :, d] = np.clip(out[:, :, d], 0, 1)
 
-    return cv2.normalize(out, None, 0, 1, cv2.NORM_MINMAX)
+    return cv2.normalize(out, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
 def color_xyedge_det(img, mu=[(1 / np.sqrt(3))] * 3):
     """
@@ -198,7 +201,7 @@ def correlate_qft(img, mu=[(1 / np.sqrt(3))] * 3):
 
 if __name__ == '__main__':
     # Read image
-    img = plt.imread('./images/shapes.png')
+    img = plt.imread('./images/Lenna.png')
 
     # Normalize image
     vmin = img.min()
@@ -219,7 +222,7 @@ if __name__ == '__main__':
 
     ax3.imshow(img_sobely[:, :, 1:], cmap='gray')
     ax3.set_title('IQFT Sobel Y'), ax3.set_xticks([]), ax3.set_yticks([])
-
+    fig.savefig('sobel-hv.png', transparent=True)
     plt.show()
 
     # Combine horizontal and vertical sobel filter using correlation
@@ -230,5 +233,5 @@ if __name__ == '__main__':
     plt.xticks([])
     plt.yticks([])
     plt.imshow(correlate[:, :, 1:], cmap='gray')
-
+    plt.savefig('sobel-correlate.png', transparent=True)
     plt.show()
