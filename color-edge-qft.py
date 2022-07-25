@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
     ax3.imshow(img_sobely[:, :, 1:], cmap='gray')
     ax3.set_title('IQFT Sobel Y'), ax3.set_xticks([]), ax3.set_yticks([])
-    fig.savefig('sobel-hv.png', transparent=True)
+    # fig.savefig('sobel-hv.png', transparent=True
     plt.show()
 
     # Combine horizontal and vertical sobel filter using correlation
@@ -233,5 +233,5 @@ if __name__ == '__main__':
     plt.xticks([])
     plt.yticks([])
     plt.imshow(correlate[:, :, 1:], cmap='gray')
-    plt.savefig('sobel-correlate.png', transparent=True)
+    # plt.savefig('sobel-correlate.png', transparent=True)
     plt.show()
