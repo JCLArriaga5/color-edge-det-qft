@@ -4,6 +4,18 @@ from scipy import signal
 from scipy import fftpack
 import cv2
 
+def img2uint8(img):
+    '''
+    Convert image to 8-bit format [0, 255].
+    '''
+
+    vmin = img.min()
+    vmax = img.max()
+
+    img = ((img - vmin) / (vmax - vmin)) * 255.0
+
+    return np.uint8(img)
+
 def img_qft(img, mu):
     """
     Obtain the Fourier Transform for Quaternions of an Image.
@@ -19,6 +31,9 @@ def img_qft(img, mu):
     ------
     Fuv : QFT in the frequency domain of the 4-D space image.
     """
+
+    if img.dtype != np.uint8:
+        img = img2uint8(img)
 
     fr = img[:, :, 0]
     fg = img[:, :, 1]
@@ -204,9 +219,7 @@ if __name__ == '__main__':
     img = plt.imread('./images/Lenna.png')
 
     # Normalize image
-    vmin = img.min()
-    vmax = img.max()
-    img = (np.float32(img) - vmin) / (vmax - vmin)
+    img = img2uint8(img)
 
     # Get a vertical and horizontal sobel filter apply in image
     img_sobelx, img_sobely = color_xyedge_det(img)
