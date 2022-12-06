@@ -76,6 +76,8 @@ def img_iqft(img_qft, mu):
     fmn : Color image.
     """
 
+    assert F.shape[2] == 4, "Image is not in qft format"
+
     A = img_qft[:, :, 0]
     B = img_qft[:, :, 1]
     C = img_qft[:, :, 2]
