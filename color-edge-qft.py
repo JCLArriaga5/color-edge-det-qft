@@ -185,10 +185,11 @@ def img_out(F, mu=[(1 / np.sqrt(3))] * 3):
     out = img_iqft(F, mu)
 
     for d in range(out.shape[2]):
-        out[:, :, d] /= np.amax(out[:, :, d])
-        out[:, :, d] = np.clip(out[:, :, d], 0, 1)
+        out[:, :, d] *= 255.0 / np.amax(out[:, :, d])
+        out[:, :, d] = np.clip(out[:, :, d], 0, 255)
 
-    return cv2.normalize(out, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    return np.uint8(out)
+    # return np.uint8(cv2.normalize(out, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
 
 def color_xyedge_det(img, mu=[(1 / np.sqrt(3))] * 3):
     """
