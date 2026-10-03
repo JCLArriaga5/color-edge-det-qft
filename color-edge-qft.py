@@ -138,7 +138,7 @@ def sobel_filter_qft(f, mu=[(1 / np.sqrt(3))] * 3):
     # sobel in y direction
     sobel_y = np.flip(sobel_x.T, axis=0)
 
-    # Padding (Mismo código que tenías)
+    # Padding
     sz_x = (f.shape[0] - sobel_x.shape[0], f.shape[1] - sobel_x.shape[1])
     sobel_x = np.pad(sobel_x, (((sz_x[0] + 1) // 2, sz_x[0] // 2),
                                ((sz_x[1] + 1) // 2, sz_x[1] // 2)), 'constant')
@@ -149,29 +149,29 @@ def sobel_filter_qft(f, mu=[(1 / np.sqrt(3))] * 3):
                                ((sz_y[1] + 1) // 2, sz_y[1] // 2)), 'constant')
     sobel_y = np.fft.ifftshift(sobel_y)
 
-    # Transformada 2D estándar de los filtros
+    # Standard 2D transform of the filters
     H_x = np.fft.fft2(sobel_x)
     H_y = np.fft.fft2(sobel_y)
 
-    # Extraer partes reales (R) e imaginarias (I)
+    # Extract real (R) and imaginary (I) parts
     R_x, I_x = H_x.real, H_x.imag
     R_y, I_y = H_y.real, H_y.imag
     
     alpha, betha, gamma = mu[0], mu[1], mu[2]
     
-    # Componentes del cuaternión de la imagen (A + Bi + Cj + Dk)
+    # Quaternion components of the image (A + Bi + Cj + Dk)
     A = f[:, :, 0]
     B = f[:, :, 1]
     C = f[:, :, 2]
     D = f[:, :, 3]
 
     def quat_mult(A, B, C, D, R, I):
-        """Multiplicación q1 * q2 con el filtro mapeado al eje mu"""
+        """Multiplication q1 * q2 with the filter mapped to the mu axis"""
         Xi = I * alpha
         Xj = I * betha
         Xk = I * gamma
         
-        # Producto cruzado de cuaterniones
+        # Quaternion cross product
         out_A = A * R - B * Xi - C * Xj - D * Xk
         out_B = A * Xi + B * R + C * Xk - D * Xj
         out_C = A * Xj - B * Xk + C * R + D * Xi
@@ -179,7 +179,7 @@ def sobel_filter_qft(f, mu=[(1 / np.sqrt(3))] * 3):
         
         return np.stack([out_A, out_B, out_C, out_D], axis=-1)
 
-    # Aplicar el filtro convolucional en dominio hipercomplejo
+    # Apply the convolutional filter in the hypercomplex domain
     Gx = quat_mult(A, B, C, D, R_x, I_x)
     Gy = quat_mult(A, B, C, D, R_y, I_y)
 
@@ -207,7 +207,7 @@ def img_out(F, mu=[(1 / np.sqrt(3))] * 3):
 
     out = img_iqft(F, mu)
     
-    # CRÍTICO: Valor absoluto para recuperar bordes con gradiente negativo
+    # CRITICAL: Absolute value to recover edges with negative gradients
     out = np.abs(out) 
 
     return normalize_tensor(out)
@@ -258,14 +258,14 @@ def gradient_magnitude_qft(img, mu=[(1 / np.sqrt(3))] * 3):
     f = img_qft(img, mu)
     Gx, Gy = sobel_filter_qft(f, mu)
     
-    # 1. Regresar al dominio espacial en crudo (float)
+    # 1. Return to the raw spatial domain (float)
     out_x = img_iqft(Gx, mu)
     out_y = img_iqft(Gy, mu)
     
-    # 2. Magnitud del gradiente euclidiano en el espacio
+    # 2. Euclidean gradient magnitude in the spatial domain
     magnitude = np.sqrt(out_x**2 + out_y**2)
     
-    # 3. Normalizar de forma vectorizada
+    # 3. Vectorized normalization
     return normalize_tensor(magnitude)
 
 if __name__ == '__main__':
