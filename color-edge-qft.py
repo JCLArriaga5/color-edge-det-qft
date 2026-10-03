@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import signal
 from scipy import fftpack
-import cv2
 
 def img2uint8(img):
     '''
@@ -11,6 +9,9 @@ def img2uint8(img):
 
     vmin = img.min()
     vmax = img.max()
+
+    if vmax == vmin:
+        return np.uint8(img)
 
     img = ((img - vmin) / (vmax - vmin)) * 255.0
 
@@ -47,18 +48,12 @@ def img_qft(img, mu):
     betha = mu[1]
     gamma = mu[2]
 
-    Auv = - (alpha * DFTfr[:, :].imag) - (betha * DFTfg[:, :].imag) - (gamma * DFTfb[:, :].imag)
-    iBuv = DFTfr[:, :].real + (gamma * DFTfg[:, :].imag) - (betha * DFTfb[:, :].imag)
-    jCuv = DFTfg[:, :].real + (alpha * DFTfb[:, :].imag) - (gamma * DFTfr[:, :].imag)
-    kDuv = DFTfb[:, :].real + (betha * DFTfr[:, :].imag) - (alpha * DFTfg[:, :].imag)
+    Auv = - (alpha * DFTfr.imag) - (betha * DFTfg.imag) - (gamma * DFTfb.imag)
+    iBuv = DFTfr.real + (gamma * DFTfg.imag) - (betha * DFTfb.imag)
+    jCuv = DFTfg.real + (alpha * DFTfb.imag) - (gamma * DFTfr.imag)
+    kDuv = DFTfb.real + (betha * DFTfr.imag) - (alpha * DFTfg.imag)
 
-    Fuv = np.zeros((img.shape[0], img.shape[1], 4))
-    Fuv[:, :, 0] = Auv
-    Fuv[:, :, 1] = iBuv
-    Fuv[:, :, 2] = jCuv
-    Fuv[:, :, 3] = kDuv
-
-    return Fuv
+    return np.stack([Auv, iBuv, jCuv, kDuv], axis=-1)
 
 def img_iqft(img_qft, mu):
     """
@@ -93,45 +88,42 @@ def img_iqft(img_qft, mu):
     gamma = mu[2]
 
     fa = (
-        IDFTA[:, :].real - (alpha * IDFTB[:, :].imag) -
-        (betha * IDFTC[:, :].imag) - (gamma * IDFTD[:, :].imag)
+        IDFTA.real - (alpha * IDFTB.imag) -
+        (betha * IDFTC.imag) - (gamma * IDFTD.imag)
     )
     fr = (
-        IDFTB[:, :].real + (alpha * IDFTA[:, :].imag) +
-        (gamma * IDFTC[:, :].imag) - (betha * IDFTD[:, :].imag)
+        IDFTB.real + (alpha * IDFTA.imag) +
+        (gamma * IDFTC.imag) - (betha * IDFTD.imag)
     )
     fg = (
-        IDFTC[:, :].real + (betha * IDFTA[:, :].imag) +
-        (alpha * IDFTD[:, :].imag) - (gamma * IDFTB[:, :].imag)
+        IDFTC.real + (betha * IDFTA.imag) +
+        (alpha * IDFTD.imag) - (gamma * IDFTB.imag)
     )
     fb = (
-        IDFTD[:, :].real + (gamma * IDFTA[:, :].imag) +
-        (betha * IDFTB[:, :].imag) - (alpha * IDFTC[:, :].imag)
+        IDFTD.real + (gamma * IDFTA.imag) +
+        (betha * IDFTB.imag) - (alpha * IDFTC.imag)
     )
 
-    fmn = np.zeros((img_qft.shape[0], img_qft.shape[1], 4))
-    fmn[:, :, 0] = fa
-    fmn[:, :, 1] = fr
-    fmn[:, :, 2] = fg
-    fmn[:, :, 3] = fb
+    return np.stack([fa, fr, fg, fb], axis=-1)
 
-    return fmn
-
-def sobel_filter_qft(f):
+def sobel_filter_qft(f, mu=[(1 / np.sqrt(3))] * 3):
     """
-    Vertical and horizontal sobel filter in the frequency domain applied to the
-    QFT of the image.
+    Vertical and horizontal Sobel filter applying the hypercomplex
+    convolution theorem (Quaternion cross multiplication).
 
     Parameters
     ----------
-    f : QFT of the image.
+    f : array-like
+        QFT image in the frequency domain.
+    mu : list, optional
+        Pure quaternion unit axis. Default is the gray axis.
 
     Returns
     -------
-    Gx : complex
-        Sobel filter applied horizontally at qft in the frequency domain.
-    Gy : complex
-        Sobel filter applied vertically at qft in the frequency domain.
+    Gx : array-like
+        Horizontal Sobel filter response in the QFT frequency domain.
+    Gy : array-like
+        Vertical Sobel filter response in the QFT frequency domain.
     """
 
     # sobel in x direction
@@ -141,6 +133,7 @@ def sobel_filter_qft(f):
     # sobel in y direction
     sobel_y = np.flip(sobel_x.T, axis=0)
 
+    # Padding (Mismo código que tenías)
     sz_x = (f.shape[0] - sobel_x.shape[0], f.shape[1] - sobel_x.shape[1])
     sobel_x = np.pad(sobel_x, (((sz_x[0] + 1) // 2, sz_x[0] // 2),
                                ((sz_x[1] + 1) // 2, sz_x[1] // 2)), 'constant')
@@ -151,71 +144,136 @@ def sobel_filter_qft(f):
                                ((sz_y[1] + 1) // 2, sz_y[1] // 2)), 'constant')
     sobel_y = fftpack.ifftshift(sobel_y)
 
-    Gx = np.zeros((f.shape))
-    Gy = np.zeros((f.shape))
+    # Transformada 2D estándar de los filtros
+    H_x = fftpack.fft2(sobel_x)
+    H_y = fftpack.fft2(sobel_y)
 
-    for i in range(f.shape[2]):
-        if i == 0:
-            Gx[:, :, i] = f[:, :, i] * fftpack.fft2(sobel_x).real
-            Gy[:, :, i] = f[:, :, i] * fftpack.fft2(sobel_y).real
-        else:
-            Gx[:, :, i] = f[:, :, i] * fftpack.fft2(sobel_x).imag
-            Gy[:, :, i] = f[:, :, i] * fftpack.fft2(sobel_y).imag
+    # Extraer partes reales (R) e imaginarias (I)
+    R_x, I_x = H_x.real, H_x.imag
+    R_y, I_y = H_y.real, H_y.imag
+    
+    alpha, betha, gamma = mu[0], mu[1], mu[2]
+    
+    # Componentes del cuaternión de la imagen (A + Bi + Cj + Dk)
+    A = f[:, :, 0]
+    B = f[:, :, 1]
+    C = f[:, :, 2]
+    D = f[:, :, 3]
+
+    def quat_mult(A, B, C, D, R, I):
+        """Multiplicación q1 * q2 con el filtro mapeado al eje mu"""
+        Xi = I * alpha
+        Xj = I * betha
+        Xk = I * gamma
+        
+        # Producto cruzado de cuaterniones
+        out_A = A * R - B * Xi - C * Xj - D * Xk
+        out_B = A * Xi + B * R + C * Xk - D * Xj
+        out_C = A * Xj - B * Xk + C * R + D * Xi
+        out_D = A * Xk + B * Xj - C * Xi + D * R
+        
+        return np.stack([out_A, out_B, out_C, out_D], axis=-1)
+
+    # Aplicar el filtro convolucional en dominio hipercomplejo
+    Gx = quat_mult(A, B, C, D, R_x, I_x)
+    Gy = quat_mult(A, B, C, D, R_y, I_y)
 
     return Gx, Gy
 
 def img_out(F, mu=[(1 / np.sqrt(3))] * 3):
     """
-    Retrieve color image using inverse Fourier transform for quaternions.
+    Transforms the filtered frequency domain image back to the spatial domain,
+    computes the absolute value, and normalizes it to [0, 255] format.
 
     Parameters
     ----------
-    F : Quaternion Fourier transform image.
-    mu : list
-      Pure quaternion unit.
-      e.g., (i + j + k) / sqrt(3) -> [1/sqrt(3), 1/sqrt(3), 1/sqrt(3)]
+    F : array-like
+        The filtered QFT image in the frequency domain (4-D).
+    mu : list, optional
+        Pure quaternion unit axis. Default is the gray axis.
 
-    Return
-    ------
-    Normalized image in [0, 1] range.
+    Returns
+    -------
+    out : array-like
+        The spatial domain image normalized to 8-bit uint8 format.
     """
 
     assert F.shape[2] == 4, "Image is not in qft format"
 
     out = img_iqft(F, mu)
+    
+    # CRÍTICO: Valor absoluto para recuperar bordes con gradiente negativo
+    out = np.abs(out) 
 
     for d in range(out.shape[2]):
-        out[:, :, d] *= 255.0 / np.amax(out[:, :, d])
+        max_val = np.amax(out[:, :, d])
+        if max_val > 0: # Prevenir división por cero si el canal es oscuro
+            out[:, :, d] *= 255.0 / max_val
         out[:, :, d] = np.clip(out[:, :, d], 0, 255)
 
     return np.uint8(out)
-    # return np.uint8(cv2.normalize(out, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
 
 def color_xyedge_det(img, mu=[(1 / np.sqrt(3))] * 3):
     """
     Color image recovered once the horizontal and vertical sobel filter is
     applied.
+
+    Parameters
+    ----------
+    img : array-like
+        Color image [R, G, B].
+    mu : list, optional
+        Pure quaternion unit axis. Default is the gray axis.
+
+    Returns
+    -------
+    out_Gx : array-like
+        Image with the horizontal Sobel filter applied.
+    out_Gy : array-like
+        Image with the vertical Sobel filter applied.
     """
 
     f = img_qft(img, mu)
-    Gx, Gy = sobel_filter_qft(f)
+    Gx, Gy = sobel_filter_qft(f, mu)
 
     return img_out(Gx, mu), img_out(Gy, mu)
 
-def correlate_qft(img, mu=[(1 / np.sqrt(3))] * 3):
+def gradient_magnitude_qft(img, mu=[(1 / np.sqrt(3))] * 3):
     """
-    Retrieve Color Image from Horizontal and Vertical Sobel Filter Correlation.
+    Calculates the final gradient magnitude of the edges by combining the
+    horizontal and vertical Sobel filter responses in the spatial domain.
+
+    Parameters
+    ----------
+    img : array-like
+        Color image [R, G, B].
+    mu : list, optional
+        Pure quaternion unit axis. Default is the gray axis.
+
+    Returns
+    -------
+    magnitude : array-like
+        The combined edge magnitude image normalized to 8-bit uint8 format.
     """
 
     f = img_qft(img, mu)
-    Gx, Gy = sobel_filter_qft(f)
-
-    correlate = np.zeros(f.shape)
-
-    for j in range(f.shape[2]):
-        correlate[:, :, j] = Gx[:, :, j] - Gy[:, :, j]
-
-    return img_out(correlate, mu)
+    Gx, Gy = sobel_filter_qft(f, mu)
+    
+    # 1. Regresar al dominio espacial en crudo (float)
+    out_x = img_iqft(Gx, mu)
+    out_y = img_iqft(Gy, mu)
+    
+    # 2. Magnitud del gradiente euclidiano en el espacio
+    magnitude = np.sqrt(out_x**2 + out_y**2)
+    
+    # 3. Normalizar
+    for d in range(magnitude.shape[2]):
+        max_val = np.amax(magnitude[:, :, d])
+        if max_val > 0:
+            magnitude[:, :, d] *= 255.0 / max_val
+        magnitude[:, :, d] = np.clip(magnitude[:, :, d], 0, 255)
+        
+    return np.uint8(magnitude)
 
 if __name__ == '__main__':
     # Read image
@@ -238,16 +296,16 @@ if __name__ == '__main__':
 
     ax3.imshow(img_sobely[:, :, 1:], cmap='gray')
     ax3.set_title('IQFT Sobel Y'), ax3.set_xticks([]), ax3.set_yticks([])
-    # fig.savefig('sobel-hv.png', transparent=True
+    fig.savefig('./images/sobel-hv.png', transparent=True)
     plt.show()
 
-    # Combine horizontal and vertical sobel filter using correlation
-    correlate = correlate_qft(img)
+    # Combine horizontal and vertical sobel filter to get gradient magnitude
+    grad_mag = gradient_magnitude_qft(img)
 
     plt.figure(figsize=(8, 8))
-    plt.title('Sobel H-V Filter Correlation')
+    plt.title('Sobel H-V Gradient Magnitude')
     plt.xticks([])
     plt.yticks([])
-    plt.imshow(correlate[:, :, 1:], cmap='gray')
-    # plt.savefig('sobel-correlate.png', transparent=True)
+    plt.imshow(grad_mag[:, :, 1:], cmap='gray')
+    plt.savefig('./images/sobel-grad-mag.png', transparent=True)
     plt.show()
