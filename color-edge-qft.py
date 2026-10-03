@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import fftpack
 
 def img2uint8(img):
     '''
@@ -16,6 +15,12 @@ def img2uint8(img):
     img = ((img - vmin) / (vmax - vmin)) * 255.0
 
     return np.uint8(img)
+
+def normalize_tensor(tensor):
+    max_vals = np.amax(tensor, axis=(0, 1), keepdims=True)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        normalized = np.where(max_vals > 0, (tensor / max_vals) * 255.0, tensor)
+    return np.uint8(np.clip(normalized, 0, 255))
 
 def img_qft(img, mu):
     """
@@ -137,16 +142,16 @@ def sobel_filter_qft(f, mu=[(1 / np.sqrt(3))] * 3):
     sz_x = (f.shape[0] - sobel_x.shape[0], f.shape[1] - sobel_x.shape[1])
     sobel_x = np.pad(sobel_x, (((sz_x[0] + 1) // 2, sz_x[0] // 2),
                                ((sz_x[1] + 1) // 2, sz_x[1] // 2)), 'constant')
-    sobel_x = fftpack.ifftshift(sobel_x)
+    sobel_x = np.fft.ifftshift(sobel_x)
 
     sz_y = (f.shape[0] - sobel_y.shape[0], f.shape[1] - sobel_y.shape[1])
     sobel_y = np.pad(sobel_y, (((sz_y[0] + 1) // 2, sz_y[0] // 2),
                                ((sz_y[1] + 1) // 2, sz_y[1] // 2)), 'constant')
-    sobel_y = fftpack.ifftshift(sobel_y)
+    sobel_y = np.fft.ifftshift(sobel_y)
 
     # Transformada 2D estándar de los filtros
-    H_x = fftpack.fft2(sobel_x)
-    H_y = fftpack.fft2(sobel_y)
+    H_x = np.fft.fft2(sobel_x)
+    H_y = np.fft.fft2(sobel_y)
 
     # Extraer partes reales (R) e imaginarias (I)
     R_x, I_x = H_x.real, H_x.imag
@@ -205,13 +210,7 @@ def img_out(F, mu=[(1 / np.sqrt(3))] * 3):
     # CRÍTICO: Valor absoluto para recuperar bordes con gradiente negativo
     out = np.abs(out) 
 
-    for d in range(out.shape[2]):
-        max_val = np.amax(out[:, :, d])
-        if max_val > 0: # Prevenir división por cero si el canal es oscuro
-            out[:, :, d] *= 255.0 / max_val
-        out[:, :, d] = np.clip(out[:, :, d], 0, 255)
-
-    return np.uint8(out)
+    return normalize_tensor(out)
 
 def color_xyedge_det(img, mu=[(1 / np.sqrt(3))] * 3):
     """
@@ -266,14 +265,8 @@ def gradient_magnitude_qft(img, mu=[(1 / np.sqrt(3))] * 3):
     # 2. Magnitud del gradiente euclidiano en el espacio
     magnitude = np.sqrt(out_x**2 + out_y**2)
     
-    # 3. Normalizar
-    for d in range(magnitude.shape[2]):
-        max_val = np.amax(magnitude[:, :, d])
-        if max_val > 0:
-            magnitude[:, :, d] *= 255.0 / max_val
-        magnitude[:, :, d] = np.clip(magnitude[:, :, d], 0, 255)
-        
-    return np.uint8(magnitude)
+    # 3. Normalizar de forma vectorizada
+    return normalize_tensor(magnitude)
 
 if __name__ == '__main__':
     # Read image

@@ -1,6 +1,27 @@
 # Edge detection in color (*RGB*) images
 Edge detection in color (*RGB*) images using sobel filtering and Fourier transform for Quaternions.
 
+## Installation and Usage
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/JCLArriaga5/color-edge-det-qft.git
+   cd color-edge-det-qft
+   ```
+2. **Create and activate a virtual environment** (recommended):
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. **Run the script**:
+   ```bash
+   python color-edge-qft.py
+   ```
+
 ## Sobel horizontal and vertical
 ![sobel hv](images/sobel-hv.png)
 
