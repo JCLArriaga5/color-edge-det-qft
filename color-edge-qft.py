@@ -279,7 +279,7 @@ if __name__ == '__main__':
     img_sobelx, img_sobely = color_xyedge_det(img)
 
     # Show
-    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, nrows=1)
+    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, nrows=1, figsize=(15, 5))
 
     ax1.imshow(img, cmap='gray')
     ax1.set_title('Input image'), ax1.set_xticks([]), ax1.set_yticks([])
@@ -289,8 +289,7 @@ if __name__ == '__main__':
 
     ax3.imshow(img_sobely[:, :, 1:], cmap='gray')
     ax3.set_title('IQFT Sobel Y'), ax3.set_xticks([]), ax3.set_yticks([])
-    fig.savefig('./images/sobel-hv.png', transparent=True)
-    plt.show()
+    fig.savefig('./images/sobel-hv.png', transparent=True, bbox_inches='tight')
 
     # Combine horizontal and vertical sobel filter to get gradient magnitude
     grad_mag = gradient_magnitude_qft(img)
@@ -300,5 +299,4 @@ if __name__ == '__main__':
     plt.xticks([])
     plt.yticks([])
     plt.imshow(grad_mag[:, :, 1:], cmap='gray')
-    plt.savefig('./images/sobel-grad-mag.png', transparent=True)
-    plt.show()
+    plt.savefig('./images/sobel-grad-mag.png', transparent=True, bbox_inches='tight')
