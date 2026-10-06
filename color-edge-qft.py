@@ -289,7 +289,9 @@ if __name__ == '__main__':
 
     ax3.imshow(img_sobely[:, :, 1:], cmap='gray')
     ax3.set_title('IQFT Sobel Y'), ax3.set_xticks([]), ax3.set_yticks([])
-    fig.savefig('./images/sobel-hv.png', transparent=True, bbox_inches='tight')
+    fig.tight_layout()
+    fig.savefig('./images/sobel-hv.png', transparent=True, bbox_inches='tight', pad_inches=0.1)
+    plt.show()
 
     # Combine horizontal and vertical sobel filter to get gradient magnitude
     grad_mag = gradient_magnitude_qft(img)
@@ -299,4 +301,6 @@ if __name__ == '__main__':
     plt.xticks([])
     plt.yticks([])
     plt.imshow(grad_mag[:, :, 1:], cmap='gray')
-    plt.savefig('./images/sobel-grad-mag.png', transparent=True, bbox_inches='tight')
+    plt.tight_layout()
+    plt.savefig('./images/sobel-grad-mag.png', transparent=True, bbox_inches='tight', pad_inches=0.1)
+    plt.show()
